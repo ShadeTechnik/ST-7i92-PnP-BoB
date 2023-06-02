@@ -1,0 +1,83 @@
+ST-7i92 PnP BoB rev3.0
+
+The Analog MCU is wired to the 7i92 as CS0 and the Stepper Drive MCU is CS1. Both MCUs are the same family https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ProductDocuments/DataSheets/ATtiny424-426-427-824-826-827-DataSheet-DS40002311B.pdf.
+
+The analog MCU is a 14pin Attiny424 and the stepper drive MCU is a 20 pin Attiny426. The will be programmed on board via UPDI. The UPDI pin on both also serves as the reset pin. Each is wired with a reset button on the PCB but the function must be enabled via a register setting. This should NOT be done at the moment as if the reset register is set it requires the use of a high voltage UPDI programmer to bypass the reset function. I do not have the HV-UPDI programmer so reset should be left disabled for now.
+
+No external clocks or oscillators are used for the MCUs, They will use internal clocks (this is not the SPI clock, this is the system clock. SPI CLK is provided by the 7i92 which is the SPI Master). The analog MCU is provided an external VREF via the VREFA pin
+
+#################
+# Stepper Drive Configuration MCU Attiny426 
+#################
+Wired Pinout:
+Pin     PortAddress   Purpose
+16      PA0           Reset, UPDI
+17      PA1           UART1 TX
+18      PA2           UART1 RX
+19      PA3           Buffer Control Output for UART1 TX
+2       PA4           UART1 CS0
+3       PA5           UART1 CS1
+4       PA6           UART1 CS2
+5       PA7           UART1 CS3
+11      PB0           UART1 CS4
+10      PB1           UART1 CS5
+9       PB2           UART0 TX
+8       PB3           UART0 RX
+7       PB4           UART1 CS6
+6       PB5           UART1 CS7
+12      PC0           SPI SCK
+13      PC1           SPI MISO
+14      PC2           SPI MOSI
+15      PC3           SPI CS(SS)
+
+UART0 is the external serial interface port. It is wired but not really indended to be used here if SPI is used instead. UART0 and SPI share the same pins in the standard portmux. It is unclear to me if SPI is portmuxed to it's alternate port on PC whether UART0 still functions on PA. Only one of these periferals needs to work and SPI is preferred so it is likely not an issue. 
+
+UART1 is the UART port for configuring the onboard pluggable stepper drives. This uses an unconventional but convenient electrical connection it is explained in some detail on Page 21 of the Trinamic IC datasheet:
+https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_datasheet_rev1.09.pdf
+
+There are 6 drives (possible) on the PCB connected to UART1, in some later PCB version there could be 8 step drives so the extra MCU IO pins add a 7th and 8th CS pins. The TX and RX lines are coupled after the MCU so it's own transmissions will also be recieved and must be ignored by the MCU during transmit. There is an output buffer on the TX line to improve transmission stregth but this buffer must be deasserted in order to receive as it will overcome the single line if it is active while the drives are transmitting. This setup requires no addressing of the drives, each is treated as if it is the only drive on the line. The UART1 CSx pins function similarly to an SPI CS output but on the MCU side they are standard GPIO outputs that operate an analog switch to connect each drive to the serial line independatly. Any amount of switches can be operated at once but operating mutliple will likely cause transmission issues. See the Trinamic Datasheet for operation details, this is the exact setup referenced on p21.
+
+The Attiny426 has 4KB flash and 128B of EEPROM space. If more is necessary I have to upgrade to another MCU. The Attiny is not wired to an external oscillator, it will use the internal oscillator. The Attiny needs to be configured as the SPI slave as it is under control of the 7i96 on the same BSPI instance as the 4x ADCs. The ADC's will uperate with an SCK of upto 20mhz, at the moment I intend to operate the 7i92 SCK @ 2mhz which means the ADCs and the Attiny will all have a 2mhz SCK. The Attiny is the 5th chip select of the 7i92 (CS4). The Attiny is the only thing on the 7i92 MOSI line, meaning it is the only thing recieving from the 7i92's SPI. The ADCs are read only, so they will only transmit to the 7i92 on MISO.
+
+
+########################
+#Analog MCU Attiny424
+########################
+Pin     PortAddress   Purpose
+10      PA0           Reset, UPDI
+11      PA1           SPI MOSI
+12      PA2           SPI MISO
+13      PA3           SPI SCK
+2       PA4           SPI CS(SS)
+3       PA5           VREF
+4       PA6           AIN1
+5       PA7           AIN2
+9       PB0           AIN3
+8       PB1           AIN4
+7       PB2           UART0 TX
+6       PB3           UART0 RX
+
+UART0 is wired as a debug header, it has no inteded purpose otherwise but it is accessable on the PCB. The analog inputs can use an internal voltage reference or the reference provided via the VREF pin. VREF is intended to be used here.
+
+#####################
+#ST-PNP.comp component
+#####################
+
+##Stepper section
+The MCU firmware should be setup to program the registers via UART1. There are far more registers than the component needs to expose via hal pins. I think the only registers that need to be exposed via hal pins are also the only ones that need to exist in EEPROM space to override the hardcoded firmware registers. I will update these notes in the near future when I identify them but they are mostly related to current. They should present as hal *parameters* in the component, something in the form of:
+    drive0-cur-max U32 param
+**ToDO update register-hal descriptions
+
+##Analog section
+At the moment the Analog section should present as a set of output pins. The ADC channels on the Attiny all have a 12bit resolution. A raw 12bit integer is not useful in hal. This needs to be converted to a float. The data from each analog input should be put onto a hal output pin as a float:
+    analog-in0 FLOAT pin-output
+
+I assume the VREF pin can be read out. If this is the case it should also be provided to a hal output pin if possible
+    analog-vref FLOAT pin-output
+    
+Since the reading from the analog pins can be noisy and possibly out of scale somewhat, scale and filter input pins should also be provided for each analog channel. The caveat here is that it may be preferred to do one or both of these in the MCU firmware itself as opposed to the hal software component. In the ladder case the scale and filter component pins would only act to write the values back to the MCU In the former case the component would contain software logic to alter the analog output pin values. This would function similarly to the Vari-bit-ADC comp we did for machinekit. This is upto you as I can't determine how much "brain" these MCUs have. Scaling and filtering on the MCU firmware has the benifit of not consuming PC cycles so if the headroom on the MCU is available it is preferable. In either case the pins should represent as:
+    analog-in0-scale FLOAT pin-in
+    analog-in0-filter FLOAT pin-in
+
+
+
