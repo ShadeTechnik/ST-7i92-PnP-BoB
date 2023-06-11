@@ -79,4 +79,5 @@ Since the reading from the analog pins can be noisy and possibly out of scale so
     analog-in0-filter FLOAT pin-in
 
 
-
+Notes:
+BTT EZ2209 uses external RSENSE resistors (0.110ohms)
