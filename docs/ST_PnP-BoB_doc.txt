@@ -30,7 +30,7 @@ Pin     PortAddress   Purpose
 14      PC2           SPI MOSI
 15      PC3           SPI CS(SS)
 
-UART0 is the external serial interface port. It is wired but not really indended to be used here if SPI is used instead. UART0 and SPI share the same pins in the standard portmux. It is unclear to me if SPI is portmuxed to it's alternate port on PC whether UART0 still functions on PA. Only one of these periferals needs to work and SPI is preferred so it is likely not an issue. 
+UART0 is the external serial interface port. It is really only to be used for debug if SPI is used for control. UART1 is for the stepper drives. UART1 and SPI share the same pins in the standard portmux. SPI will be portmuxed to PC#
 
 UART1 is the UART port for configuring the onboard pluggable stepper drives. This uses an unconventional but convenient electrical connection it is explained in some detail on Page 21 of the Trinamic IC datasheet:
 https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_datasheet_rev1.09.pdf
