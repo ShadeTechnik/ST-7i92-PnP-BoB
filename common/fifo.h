@@ -21,12 +21,12 @@
 /* access: These "functions" operate directly on the struct
  *         because there is no modification.
  */
-#define fifo_available(F_)                           \
-	({                                           \
-		uint avail_ = (F_).head - (F_).tail; \
-		if (avail_ > fifo_len(F_))           \
-		{ avail_ += fifo_len(F_); }          \
-		avail_;                              \
+#define fifo_available(F_)                               \
+	({                                               \
+		unsigned avail_ = (F_).head - (F_).tail; \
+		if (avail_ > fifo_len(F_))               \
+		{ avail_ += fifo_len(F_); }              \
+		avail_;                                  \
 	})
 
 #define fifo_is_empty(F_) ((F_).head == (F_).tail)
