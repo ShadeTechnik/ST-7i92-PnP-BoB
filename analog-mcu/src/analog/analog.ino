@@ -1,23 +1,26 @@
 #include <SPI.h>
 
-#include "common/fifo.h"
-
 // looks like 14-pin SOIC??
 #define ADC1_PIN 4 // AIN6  ?
 #define ADC2_PIN 5 // AIN7  ?
 #define ADC3_PIN 9 // AIN11 ?
 #define ADC4_PIN 8 // AIN10 ?
 
-struct Adc_Data { u16 values[4]; };
+struct Reply {
+	u16 header;
+	u16 values[4];
+	u16 crc;
+};
 
-typedef Fifo(u8, 64) Byte_Fifo;
+static struct Reply _reply_data = {.header = 0xa55a};
+static u8 _reply_idx;
 
-void setup()
-{
+void
+setup() {
 	Serial.begin(9600);
 	Serial.print("Hello\r\n");
 
-	// adc_data pins
+	// reply_data pins
 	pinMode(ADC1_PIN, INPUT);
 	pinMode(ADC2_PIN, INPUT);
 	pinMode(ADC3_PIN, INPUT);
@@ -27,53 +30,30 @@ void setup()
 	pinMode(MISO, OUTPUT);
 
 	// SPI Control Register
-	SPCR |= (1 << SPE);    // set slave mode
-	SPCR |= (1 << SPIE);   // interrupt enable
+	SPCR |= (1 << SPE);   // set slave mode
+	SPCR |= (1 << SPIE);  // interrupt enable
 	SPI.attachInterrupt();
-
 }
 
-static Byte_Fifo _spi_buffer;
-static struct Adc_Data _adc_data;
-static u8 _adc_idx;
+void
+loop() {
+	if (digitalRead(SS) == HIGH) { return; }
+	if (_reply_idx < sizeof(_reply_data)) { return; }
 
-void loop()
-{
-	if (digitalRead(SS) == HIGH) {
-		return;
-	}
-
-	u8 spi_data = 0xff;
-	if (!fifo_is_empty(_spi_buffer)) {
-		spi_data = fifo_get(&_spi_buffer);
-		// do something with data?
-	}
-
-	if (_adc_idx < sizeof(_adc_data)) {
-		return;
-	}
-
-	_adc_data = (struct Adc_Data) {
-		.values = {
-			analogRead(ADC1_PIN),
-			analogRead(ADC2_PIN),
-			analogRead(ADC3_PIN),
-			analogRead(ADC4_PIN),
-		},
-	};
-	_adc_idx = 0;
+	_reply_data.values[0] = analogRead(ADC1_PIN);
+	_reply_data.values[1] = analogRead(ADC2_PIN);
+	_reply_data.values[2] = analogRead(ADC3_PIN);
+	_reply_data.values[3] = analogRead(ADC4_PIN);
+	_reply_idx = 0;
 }
 
-ISR(SPI_STC_vect)
-{
-	uint8_t spi_recv = SPDR;
-	if (!fifo_is_full(_spi_buffer)) {
-		fifo_add(&_spi_buffer, spi_recv);
-	}
+ISR(SPI_STC_vect) {
+	u8 spi_recv = SPDR;
+	(void)spi_recv;
 
-	if (_adc_idx < sizeof(_adc_data)) {
-		const u8* adc_bytes = (u8*)&_adc_data;
-		SPDR = adc_bytes[_adc_idx];
-		_adc_idx += 1;
+	if (_reply_idx < sizeof(_reply_data)) {
+		const u8* bytes = (u8*)&_reply_data;
+		SPDR = bytes[_reply_idx];
+		_reply_idx += 1;
 	}
 }
