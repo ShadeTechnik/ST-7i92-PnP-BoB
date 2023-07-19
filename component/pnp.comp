@@ -8,69 +8,76 @@ pin in float happy_input_pin;
 option extra_setup yes;
 //option count_function yes;
 
-variable unsigned *read_frame;
-variable unsigned *write_frame;
+variable unsigned *_step_drive_rx;
+variable unsigned *_step_drive_tx;
+variable unsigned *_analog_rx;
 
 license "Proprietary";
 
 include <hostmot2-serial.h>;
 ;;
 
-static int read(void *subdata) {
-    struct __comp_state *__comp_inst = subdata;
+static int
+read(void* subdata) {
+	struct __comp_state* __comp_inst = subdata;
 
-    rtapi_print("rx: %08x\n", *read_frame);
+	if (*_step_drive_rx != 0) rtapi_print("step_drive: %08x\n", *_step_drive_rx);
+	if (*_analog_rx != 0) rtapi_print("analog: %08x\r\n", *_analog_rx);
 
-    *write_frame = 0xa5a5a5a;
+	*_step_drive_tx = 0x0123456;
 
-    return 0;
+	return 0;
 }
 
-static int write(void *subdata) {
-    struct __comp_state *__comp_inst = subdata;
-    *write_frame = 0xdeadbeef;
-    return 0;
+static int
+write(void* subdata) {
+	struct __comp_state* __comp_inst = subdata;
+	*_step_drive_tx = 0xdeadbeef;
+	return 0;
 }
 
-EXTRA_SETUP(){
-    int i, r;
-    char *name = "channel_name.0.bspi.0";
+EXTRA_SETUP() {
+	int i, r;
+	char* name = "channel_name.0.bspi.0";
 
-    //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
-    // CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
-    r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 0, 0, 0);
-    if (r < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                      "There have been %i errors during channel setup, "
-                      "quitting\n", -r);
-        return -EINVAL;
-    }
+	//hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
+	// CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
+	r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 0, 0, 0);
+	if (r < 0) {
+		rtapi_print_msg(
+		    RTAPI_MSG_ERR,
+		    "There have been %i errors during channel setup, "
+		    "quitting\n",
+		    -r);
+		return -EINVAL;
+	}
 
-    // Clear BSPI Rx & Tx FIFOs.
-    // This discards the received data from the ADC setup writes above,
-    // and any other old stale data.
-    r = hm2_bspi_clear_fifo(name);
-    if (r < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "failed to clear BSPI fifos on %s\n", name);
-    }
+	// Clear BSPI Rx & Tx FIFOs.
+	// This discards the received data from the ADC setup writes above,
+	// and any other old stale data.
+	r = hm2_bspi_clear_fifo(name);
+	if (r < 0) { rtapi_print_msg(RTAPI_MSG_ERR, "failed to clear BSPI fifos on %s\n", name); }
 
-    // Add BSPI Frames
-    r = hm2_tram_add_bspi_frame(name, 1, &write_frame, &read_frame);
+	// Add BSPI Frames
+	r = hm2_tram_add_bspi_frame(name, 1, &_step_drive_tx, &_step_drive_rx);
+	r = hm2_tram_add_bspi_frame(name, 2, NULL, &_analog_rx);
 
-    // This is required, or nothing happens.
-    r += hm2_allocate_bspi_tram(name);
+	// This is required, or nothing happens.
+	r += hm2_allocate_bspi_tram(name);
 
-    // Tell the bspi driver which function to call
-    r += hm2_bspi_set_read_function(name, &read, __comp_inst);
+	// Tell the bspi driver which function to call
+	r += hm2_bspi_set_read_function(name, &read, __comp_inst);
 
-    // no separate write function in this example, but it would be:
-    r += hm2_bspi_set_write_function(name, &write, __comp_inst);
+	// no separate write function in this example, but it would be:
+	r += hm2_bspi_set_write_function(name, &write, __comp_inst);
 
-    if (r < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                      "There have been %i errors during TRAM allocation setup, "
-                      "quitting\n", -r);
-        return -EINVAL;
-    }
-    return 0;
+	if (r < 0) {
+		rtapi_print_msg(
+		    RTAPI_MSG_ERR,
+		    "There have been %i errors during TRAM allocation setup, "
+		    "quitting\n",
+		    -r);
+		return -EINVAL;
+	}
+	return 0;
 }
