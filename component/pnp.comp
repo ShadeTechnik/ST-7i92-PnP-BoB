@@ -38,7 +38,7 @@ write(void* subdata) {
 
 EXTRA_SETUP() {
 	int i, r;
-	char* name = "channel_name.0.bspi.0";
+	char* name = "hm2_7i92.0.bspi.0"; // Exact channel name needed to work here, but it should be done with [extra_arg] like the 7i65 comp//
 
 	//hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
 	// CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
