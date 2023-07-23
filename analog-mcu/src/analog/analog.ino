@@ -1,4 +1,5 @@
 #include <SPI.h>
+#include <Arduino.h>
 
 #include "common/types.h"
 
@@ -9,13 +10,14 @@
 #define ADC4_PIN 8 // AIN10 ?
 
 struct Reply {
-	u16 header;
-	u16 values[4];
-	u16 crc;
+	uint16_t header;
+	uint16_t values[4];
+	uint16_t crc;
 };
 
 static struct Reply _reply_data = {.header = 0xa55a};
-static u8 _reply_idx;
+static uint8_t _reply_idx;
+byte SPDR;
 
 void
 setup() {
@@ -28,13 +30,13 @@ setup() {
 	pinMode(ADC3_PIN, INPUT);
 	pinMode(ADC4_PIN, INPUT);
 
-	// SPI pins
-	pinMode(MISO, OUTPUT);
-
-	// SPI Control Register
-	SPCR |= (1 << SPE);   // set slave mode
-	SPCR |= (1 << SPIE);  // interrupt enable
-	SPI.attachInterrupt();
+	// SPI pins, Slave configuration
+	pinMode(SCK, INPUT);
+  pinMode(MOSI, INPUT);
+  pinMode(MISO, OUTPUT);
+  pinMode(SS, INPUT_PULLUP); // define idle pin state
+  
+  SPI.begin();
 }
 
 void
@@ -49,12 +51,12 @@ loop() {
 	_reply_idx = 0;
 }
 
-ISR(SPI_STC_vect) {
-	u8 spi_recv = SPDR;
+ISR(__vector_SPI_STC) {
+	uint8_t spi_recv = SPDR;
 	(void)spi_recv;
 
 	if (_reply_idx < sizeof(_reply_data)) {
-		const u8* bytes = (u8*)&_reply_data;
+		const uint8_t* bytes = (uint8_t*)&_reply_data;
 		SPDR = bytes[_reply_idx];
 		_reply_idx += 1;
 	}
