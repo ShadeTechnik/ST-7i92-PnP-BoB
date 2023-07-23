@@ -17,7 +17,7 @@ struct Reply {
 
 static struct Reply _reply_data = {.header = 0xa55a};
 static uint8_t _reply_idx;
-byte SPDR;
+u8 SPDR;
 
 void
 setup() {
@@ -32,11 +32,16 @@ setup() {
 
 	// SPI pins, Slave configuration
 	pinMode(SCK, INPUT);
-  pinMode(MOSI, INPUT);
-  pinMode(MISO, OUTPUT);
-  pinMode(SS, INPUT_PULLUP); // define idle pin state
-  
-  SPI.begin();
+	pinMode(MOSI, INPUT);
+	pinMode(MISO, OUTPUT);
+	pinMode(SS, INPUT_PULLUP);  // define idle pin state
+
+	// old spi config
+	//SPCR |= (1 << SPE);   // set slave mode
+	//SPCR |= (1 << SPIE);  // interrupt enable
+	//SPI.attachInterrupt();
+
+	SPI.begin();
 }
 
 void
