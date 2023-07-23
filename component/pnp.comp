@@ -11,8 +11,9 @@ option extra_setup yes;
 variable unsigned *_step_drive_rx;
 variable unsigned *_step_drive_tx;
 variable unsigned *_analog_rx;
+variable unsigned *_analog_tx;
 
-license "Proprietary";
+license "GPLv2";
 
 include <hostmot2-serial.h>;
 ;;
@@ -43,6 +44,7 @@ EXTRA_SETUP() {
 	//hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
 	// CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
 	r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 0, 0, 0);
+	r = hm2_bspi_setup_chan(name, 1, 1, 32, 4, 0, 1, 0, 0, 0, 0);
 	if (r < 0) {
 		rtapi_print_msg(
 		    RTAPI_MSG_ERR,
@@ -59,8 +61,8 @@ EXTRA_SETUP() {
 	if (r < 0) { rtapi_print_msg(RTAPI_MSG_ERR, "failed to clear BSPI fifos on %s\n", name); }
 
 	// Add BSPI Frames
-	r = hm2_tram_add_bspi_frame(name, 1, &_step_drive_tx, &_step_drive_rx);
-	r = hm2_tram_add_bspi_frame(name, 2, NULL, &_analog_rx);
+	r = hm2_tram_add_bspi_frame(name, 0, &_step_drive_tx, &_step_drive_rx);
+	r = hm2_tram_add_bspi_frame(name, 1, &_analog_tx, &_analog_rx);
 
 	// This is required, or nothing happens.
 	r += hm2_allocate_bspi_tram(name);
