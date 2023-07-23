@@ -1,5 +1,7 @@
 #include <SPI.h>
 
+#include "common/types.h"
+
 // looks like 14-pin SOIC??
 #define ADC1_PIN 4 // AIN6  ?
 #define ADC2_PIN 5 // AIN7  ?
