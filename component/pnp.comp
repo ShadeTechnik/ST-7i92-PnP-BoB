@@ -1,3 +1,8 @@
+/* LinuxCNC SPI component targeting ST-7i92 PnP BoB through Mesa HM2
+ * Author: Jason Kercher and Justin White
+ * License: GPLv2
+*/
+
 component pnp "pnp";
 
 description "Does stuff";

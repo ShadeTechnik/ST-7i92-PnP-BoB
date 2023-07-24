@@ -1,3 +1,8 @@
+/* Firmware for Attiny426 for programming Trinamic TMC2209 step drive ICs, Targeting the ST-7i92 PnP BoB
+ * Author: Jason Kercher and Justin White
+ * License: GPLv2
+*/
+
 #include <SPI.h>
 
 #include "common/fifo.h"

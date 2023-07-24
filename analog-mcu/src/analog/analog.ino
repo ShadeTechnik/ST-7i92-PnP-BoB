@@ -1,3 +1,8 @@
+/* ADC to SPI firmware for Attiny424 Targeting ST-7i92 PnP BoB
+ * Author: Jason Kercher and Justin White
+ * License: GPLv2
+*/
+
 #include <SPI.h>
 #include <Arduino.h>
 
