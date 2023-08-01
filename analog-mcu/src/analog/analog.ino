@@ -14,12 +14,6 @@
 #define ADC3_PIN 9 // AIN11 ?
 #define ADC4_PIN 8 // AIN10 ?
 
-#define SPI_CTRLA    _SFR_MEM8(0x08C0)
-#define SPI_CTRLB    _SFR_MEM8(0x08C1)
-#define SPI_INTCTRL  _SFR_MEM8(0x08C2)
-#define SPI_INTFLAGS _SFR_MEM8(0x08C3)
-#define SPI_DATA     _SFR_MEM8(0x08C4)
-
 struct Reply {
 	uint16_t header;
 	uint16_t values[4];
@@ -50,10 +44,8 @@ setup() {
 	pinMode(MISO, OUTPUT);
 	pinMode(SS, INPUT_PULLUP);  // define idle pin state
 
-	SPI_CTRLA &= ~0x20;  // slave mode
-	SPI_INTCTRL |= 0x81; // interrupt on receive
-
-	SPI.begin();
+	SPI0.CTRLA &= ~0x20;  // slave mode
+	SPI0.INTCTRL |= 0x81; // interrupt on receive
 }
 
 void
@@ -69,12 +61,12 @@ loop() {
 }
 
 ISR(__vector_SPI_STC) {
-	uint8_t spi_recv = SPI_DATA;
+	uint8_t spi_recv = SPI0.DATA;
 	(void)spi_recv;
 
 	if (_reply_idx < sizeof(_reply_data)) {
 		const uint8_t* bytes = (uint8_t*)&_reply_data;
-		SPI_DATA = bytes[_reply_idx];
+		SPI0.DATA = bytes[_reply_idx];
 		_reply_idx += 1;
 	}
 }

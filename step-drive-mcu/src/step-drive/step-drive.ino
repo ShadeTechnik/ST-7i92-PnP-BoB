@@ -13,9 +13,6 @@ TMC2209 stepper_driver;
 typedef Fifo(u8, 64) Byte_Fifo;
 static Byte_Fifo _spi_buffer;
 
-// TODO: fix SPI
-u8 SPDR;
-
 struct Drive_Config {
 	u16 microsteps_per_step;
 	u8 reply_delay;
@@ -149,20 +146,21 @@ setup() {
 		digitalWrite(_config[i].pin_number, LOW);  // disconnect drive from UART0
 	}
 
-
 	// SPI pins, Slave configuration
 	SPI.swap(1);                     // Portmux alternate SPI pins
 	pinMode(PIN_PC0, INPUT);         // SCK
 	pinMode(PIN_PC2, INPUT);         // MOSI
 	pinMode(PIN_PC1, OUTPUT);        // MISO
 	pinMode(PIN_PC3, INPUT_PULLUP);  // SS, define idle pin state
+
+	SPI0.CTRLA &= ~0x20;  // slave mode
+	SPI0.INTCTRL |= 0x81; // interrupt on receive
 }
 
 int driveNumber = 0;
 
 void
 loop() {
-
 	if (digitalRead(SS) == HIGH) {
 		return;
 	}
@@ -180,11 +178,11 @@ loop() {
 }
 
 ISR(__vector_SPI_STC) {
-	u8 spi_recv = SPDR;
+	u8 spi_recv = SPI0.DATA;
 	if (!fifo_is_full(_spi_buffer)) {
 		fifo_add(&_spi_buffer, spi_recv);
 	}
 
 	static u8 x = 0;
-	SPDR = x++;
+	SPI0.DATA = x++;
 }
