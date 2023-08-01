@@ -9,10 +9,10 @@
 #include "common/types.h"
 
 // looks like 14-pin SOIC??
-#define ADC1_PIN 4 // AIN6  ?
-#define ADC2_PIN 5 // AIN7  ?
-#define ADC3_PIN 9 // AIN11 ?
-#define ADC4_PIN 8 // AIN10 ?
+#define ADC1_PIN 4  // AIN6  ?
+#define ADC2_PIN 5  // AIN7  ?
+#define ADC3_PIN 9  // AIN11 ?
+#define ADC4_PIN 8  // AIN10 ?
 
 struct Reply {
 	uint16_t header;
@@ -44,14 +44,18 @@ setup() {
 	pinMode(MISO, OUTPUT);
 	pinMode(SS, INPUT_PULLUP);  // define idle pin state
 
-	SPI0.CTRLA &= ~0x20;  // slave mode
-	SPI0.INTCTRL |= 0x81; // interrupt on receive
+	SPI0.CTRLA &= ~0x20;   // slave mode
+	SPI0.INTCTRL |= 0x81;  // interrupt on receive
 }
 
 void
 loop() {
-	if (digitalRead(SS) == HIGH) { return; }
-	if (_reply_idx < sizeof(_reply_data)) { return; }
+	if (digitalRead(SS) == HIGH) {
+		return;
+	}
+	if (_reply_idx < sizeof(_reply_data)) {
+		return;
+	}
 
 	_reply_data.values[0] = analogRead(ADC1_PIN);
 	_reply_data.values[1] = analogRead(ADC2_PIN);

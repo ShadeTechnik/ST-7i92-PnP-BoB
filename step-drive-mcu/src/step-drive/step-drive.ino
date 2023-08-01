@@ -111,7 +111,7 @@ setup() {
 			continue;
 		}
 		Serial.print("Setting Drive ");
-	        Serial.print(i);
+		Serial.print(i);
 		Serial.println(" Now......");
 		digitalWrite(_config[i].pin_number, HIGH);  // connect drive to UART0
 		digitalWrite(BFR_CTRL_PIN, LOW);            // drive buffer to transmit data
@@ -153,8 +153,8 @@ setup() {
 	pinMode(PIN_PC1, OUTPUT);        // MISO
 	pinMode(PIN_PC3, INPUT_PULLUP);  // SS, define idle pin state
 
-	SPI0.CTRLA &= ~0x20;  // slave mode
-	SPI0.INTCTRL |= 0x81; // interrupt on receive
+	SPI0.CTRLA &= ~0x20;   // slave mode
+	SPI0.INTCTRL |= 0x81;  // interrupt on receive
 }
 
 int driveNumber = 0;
