@@ -26,11 +26,37 @@ struct Drive_Config {
 	bool drive_present;
 };
 
-static const struct Drive_Config DEFAULT_CONFIG = {
+static const struct Drive_Config NEMA23_CONFIG = {
+    16,     // microsteps_per_step
+    4,      // reply delay
+    80,     // run_current
+    40,     // hold_current
+    50,     // coolstep_lower
+    50,     // coolstep_upper
+    50,     // stall_guard_threshold
+    0,      // pin_number (set in setup)
+    true,   // use_external_sense_resistor
+    false,  // drive_present
+};
+
+static const struct Drive_Config NEMA17_CONFIG = {
     16,     // microsteps_per_step
     4,      // reply delay
     50,     // run_current
-    20,     // hold_current
+    30,     // hold_current
+    50,     // coolstep_lower
+    50,     // coolstep_upper
+    50,     // stall_guard_threshold
+    0,      // pin_number (set in setup)
+    true,   // use_external_sense_resistor
+    false,  // drive_present
+};
+
+static const struct Drive_Config NEMA8_CONFIG = {
+    16,     // microsteps_per_step
+    4,      // reply delay
+    20,     // run_current
+    10,     // hold_current
     50,     // coolstep_lower
     50,     // coolstep_upper
     50,     // stall_guard_threshold
@@ -41,14 +67,14 @@ static const struct Drive_Config DEFAULT_CONFIG = {
 
 #define DRIVE_COUNT 8
 static struct Drive_Config _config[DRIVE_COUNT] = {
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
-    DEFAULT_CONFIG,
+    NEMA17_CONFIG,
+    NEMA23_CONFIG,
+    NEMA17_CONFIG,
+    NEMA8_CONFIG,
+    NEMA8_CONFIG,
+    NEMA8_CONFIG,
+    NEMA8_CONFIG,
+    NEMA8_CONFIG,
 };
 
 static const u8 BFR_CTRL_PIN = PIN_PA3;
