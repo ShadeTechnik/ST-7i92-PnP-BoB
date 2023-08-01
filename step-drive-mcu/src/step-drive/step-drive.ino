@@ -1,169 +1,132 @@
-/* Firmware for Attiny426 for programming Trinamic TMC2209 step drive ICs, Targeting the ST-7i92 PnP BoB
- * Author: Jason Kercher and Justin White
- * License: GPLv2
-*/
 
 #include <SPI.h>
-#include <TMC2209.h>
-HardwareSerial & serial_stream = Serial1;
+#include "TMC2209.h"
 
 #include "common/fifo.h"
 #include "common/types.h"
 
-// Stepper Drive variables
-
-// Global
-const int  Drv_RepDel    =  4; // Drive UART Repy Delay (2-15)
-
-//X Axis
-const bool Drv0_Present  =  1; // 1 if drive is present
-int        Drv0_RunCur   = 60; // Run Current  (Percent)
-int        Drv0_HldCur   = 30; // Hold Current (Percent)
-int        Drv0_HldDel   = 30; // Hold Delay   (Percent)
-int        Drv0_uStp     = 16; // uSteps perStep
-bool       Drv0_Stlchp   =  1; // StealthChop  1=enabled
-bool       Drv0_ClStpEn  =  1; // CoolStep     1=enabled
-int        Drv0_ClStpTH  = 20; // CoolStep Threshold    
-int        Drv0_StlGrdTH = 50; // Stall Gaurd Threshold  
-const bool Drv0_ExtRes   =  1; // Module External Sense Resistors 1=enabled
-
-
-//Y Axis
-const bool Drv1_Present  =  1; // 1 if drive is present
-int        Drv1_RunCur   = 80; // Run Current  (Percent)
-int        Drv1_HldCur   = 30; // Hold Current (Percent)
-int        Drv1_HldDel   = 30; // Hold Delay   (Percent)
-int        Drv1_uStp     = 16; // uSteps perStep
-bool       Drv1_Stlchp   =  1; // StealthChop  1=enabled
-bool       Drv1_ClStpEn  =  1; // CoolStep     1=enabled
-int        Drv1_ClStpTH  = 20; // CoolStep Threshold    
-int        Drv1_StlGrdTH = 50; // Stall Gaurd Threshold  
-const bool Drv1_ExtRes   =  1; // Module External Sense Resistors 1=enabled
-
-
-//Z Axis, Nozzle See-saw
-const bool Drv2_Present  =  1; // 1 if drive is present
-int        Drv2_RunCur   = 50; // Run Current  (Percent)
-int        Drv2_HldCur   = 20; // Hold Current (Percent)
-int        Drv2_HldDel   = 30; // Hold Delay   (Percent)
-int        Drv2_uStp     = 16; // uSteps perStep
-bool       Drv2_Stlchp   =  1; // StealthChop  1=enabled
-bool       Drv2_ClStpEn  =  1; // CoolStep     1=enabled
-int        Drv2_ClStpTH  = 20; // CoolStep Threshold    
-int        Drv2_StlGrdTH = 50; // Stall Gaurd Threshold  
-const bool Drv2_ExtRes   =  1; // Module External Sense Resistors 1=enabled
-
-
-//A Axis, Nozzle 1
-const bool Drv3_Present  =  1; // 1 if drive is present
-int        Drv3_RunCur   = 20; // Run Current  (Percent)
-int        Drv3_HldCur   = 10; // Hold Current (Percent)
-int        Drv3_HldDel   = 30; // Hold Delay   (Percent)
-int        Drv3_uStp     = 16; // uSteps perStep
-bool       Drv3_Stlchp   =  1; // StealthChop  1=enabled
-bool       Drv3_ClStpEn  =  1; // CoolStep     1=enabled
-int        Drv3_ClStpTH  = 20; // CoolStep Threshold    
-int        Drv3_StlGrdTH = 50; // Stall Gaurd Threshold  
-const bool Drv3_ExtRes   =  1; // Module External Sense Resistors 1=enabled
-
-
-//B Axis, Nozzle 2
-const bool Drv4_Present  =  1; // 1 if drive is present
-int        Drv4_RunCur   = 20; // Run Current  (Percent)
-int        Drv4_HldCur   = 10; // Hold Current (Percent)
-int        Drv4_HldDel   = 30; // Hold Delay   (Percent)
-int        Drv4_uStp     = 16; // uSteps perStep
-bool       Drv4_Stlchp   =  1; // StealthChop  1=enabled
-bool       Drv4_ClStpEn  =  1; // CoolStep     1=enabled
-int        Drv4_ClStpTH  = 20; // CoolStep Threshold    
-int        Drv4_StlGrdTH = 50; // Stall Gaurd Threshold  
-const bool Drv4_ExtRes   =  1; // Module External Sense Resistors 1=enabled
-
-
-// Module Not Present on BoB
-const bool Drv5_Present  =  0; // 1 if drive is present
-int        Drv5_RunCur   = 60; // Run Current  (Percent)
-int        Drv5_HldCur   = 30; // Hold Current (Percent)
-int        Drv5_HldDel   = 30; // Hold Delay   (Percent)
-int        Drv5_uStp     = 16; // uSteps perStep
-bool       Drv5_Stlchp   =  1; // StealthChop  1=enabled
-bool       Drv5_ClStpEn  =  1; // CoolStep     1=enabled
-int        Drv5_ClStpTH  = 20; // CoolStep Threshold    
-int        Drv5_StlGrdTH = 50; // Stall Gaurd Threshold  
-const bool Drv5_ExtRes   =  1; // Module External Sense Resistors 1=enabled
+#define STEP_DRIVE_SERIAL Serial1
 
 // Instantiate TMC2209
 TMC2209 stepper_driver;
 
-
 typedef Fifo(u8, 64) Byte_Fifo;
+static Byte_Fifo _spi_buffer;
 
+// TODO: fix SPI
 u8 SPDR;
+
+struct Drive_Config {
+	u16 microsteps_per_step;
+	u8 reply_delay;
+	u8 run_current;
+	u8 hold_current;
+	u8 coolstep_lower;
+	u8 coolstep_upper;
+	u8 stall_guard_threshold;
+	u8 pin_number;
+	bool use_external_sense_resistor;
+	bool drive_present;
+};
+
+static const struct Drive_Config DEFAULT_CONFIG = {
+    16,     // microsteps_per_step
+    4,      // reply delay
+    50,     // run_current
+    20,     // hold_current
+    50,     // coolstep_lower
+    50,     // coolstep_upper
+    50,     // stall_guard_threshold
+    0,      // pin_number (set in setup)
+    true,   // use_external_sense_resistor
+    false,  // drive_present
+};
+
+#define DRIVE_COUNT 8
+static struct Drive_Config _config[DRIVE_COUNT] = {
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+    DEFAULT_CONFIG,
+};
+
+static const u8 BFR_CTRL_PIN = PIN_PA3;
+
+void
+send_drive_config(int idx) {
+	Drive_Config* dc = &_config[idx];
+
+	//stepper_driver.setup(STEP_DRIVE_SERIAL);
+	stepper_driver.setReplyDelay(dc->reply_delay);
+	stepper_driver.setRunCurrent(dc->run_current);
+	stepper_driver.setHoldCurrent(dc->hold_current);
+	stepper_driver.setMicrostepsPerStep(dc->microsteps_per_step);
+	stepper_driver.enableCoolStep(dc->coolstep_lower, dc->coolstep_upper);
+	stepper_driver.setStallGuardThreshold(dc->stall_guard_threshold);
+	if (dc->use_external_sense_resistor) {
+		stepper_driver.useExternalSenseResistors();
+	} else {
+		stepper_driver.useInternalSenseResistors();
+	}
+}
 
 void
 setup() {
-	Serial.begin(9600);           // UART0, Debug or external control
-	Serial1.begin(115200);        // UART1, Drive Control
-	
-	Serial.print("Debug Console Running\r\n");
-	
-	stepper_driver.setup(serial_stream);
-	
-	// Stepper drive UART switch select GPIO
-	pinMode(PIN_PA3, OUTPUT);   // UART1 Buffer Control 
-	pinMode(PIN_PA4, OUTPUT); // UART1 Drive Select 0 
-	pinMode(PIN_PA5, OUTPUT); // UART1 Drive Select 1 
-	pinMode(PIN_PA6, OUTPUT); // UART1 Drive Select 2 
-	pinMode(PIN_PA7, OUTPUT); // UART1 Drive Select 3 
-	pinMode(PIN_PB0, OUTPUT); // UART1 Drive Select 4 
-	pinMode(PIN_PB1, OUTPUT); // UART1 Drive Select 5 *Module not present
-	pinMode(PIN_PB4, OUTPUT); // UART1 Drive Select 6 *Not on PCB
-	pinMode(PIN_PB5, OUTPUT); // UART1 Drive Select 7 *Not on PCB
-	/* Buffer control switch is "Active Low" (Set LOW to enable/transmit, Set HIGH to disable/recieve)
-	   Drive select pins are "Active High" (Set high to connect UART1 to each drive individually) */
-	
-	// Setup Initial Pin Sates
-	digitalWrite(PIN_PA3, HIGH);
-	digitalWrite(PIN_PA4, LOW);
-	digitalWrite(PIN_PA5, LOW);
-	digitalWrite(PIN_PA6, LOW);
-	digitalWrite(PIN_PA7, LOW);
-	digitalWrite(PIN_PB0, LOW);
-	digitalWrite(PIN_PB1, LOW);
-	digitalWrite(PIN_PB4, LOW);
-	digitalWrite(PIN_PB5, LOW);
+	_config[0].drive_present = true;
+	_config[1].drive_present = true;
+	_config[2].drive_present = true;
+	_config[3].drive_present = true;
+	_config[4].drive_present = true;
 
-	// SPI pins, Slave configuration
-	SPI.swap(1);                     // Portmux alternate SPI pins
-	pinMode(PIN_PC0, INPUT);         // SCK
-	pinMode(PIN_PC2, INPUT);         // MOSI
-	pinMode(PIN_PC1, OUTPUT);        // MISO
-	pinMode(PIN_PC3, INPUT_PULLUP);  // SS, define idle pin state
-	
-	// Setup drives over UART
-	if (Drv0_Present) {
-		Serial.println("Setting Drive0 Now......");
-		digitalWrite(PIN_PA4, HIGH); //connect drive
-		digitalWrite(PIN_PA3, LOW); // transmit data
-		delay(10);
-		stepper_driver.setReplyDelay(Drv_RepDel);
-		stepper_driver.setup(serial_stream);
-		stepper_driver.setRunCurrent(Drv0_RunCur);
-		stepper_driver.setHoldCurrent(Drv0_HldCur);
-		stepper_driver.setHoldDelay(Drv0_HldDel);
-		stepper_driver.setMicrostepsPerStep(Drv0_uStp);
-		stepper_driver.enableCoolStep(Drv0_ClStpEn);
-		stepper_driver.setCoolStepDurationThreshold(Drv0_ClStpTH);
-		if (Drv0_ExtRes) {
-			stepper_driver.useExternalSenseResistors();
-		} else {
-			stepper_driver.useInternalSenseResistors();
+	_config[0].pin_number = PIN_PA4;
+	_config[1].pin_number = PIN_PA5;
+	_config[2].pin_number = PIN_PA6;
+	_config[3].pin_number = PIN_PA7;
+	_config[4].pin_number = PIN_PB0;
+	_config[5].pin_number = PIN_PB1;
+	_config[6].pin_number = PIN_PB4;
+	_config[7].pin_number = PIN_PB5;
+
+	Serial.begin(9600);     // UART0, Debug or external control
+	Serial1.begin(115200);  // UART1, Drive Control
+
+	Serial.print("Debug Console Running\r\n");
+
+	stepper_driver.setup(STEP_DRIVE_SERIAL);
+
+	// Stepper drive UART switch select GPIO
+	pinMode(BFR_CTRL_PIN, OUTPUT);  // UART1 Buffer control
+	digitalWrite(BFR_CTRL_PIN, HIGH);
+	for (int i = 0; i < DRIVE_COUNT; ++i) {
+		pinMode(_config[i].pin_number, OUTPUT);
+		digitalWrite(_config[i].pin_number, LOW);
+	}
+
+	// TODO: load from eeprom
+	//       if 0xffs, load default:
+	// Configure Drives
+	for (int i = 0; i < DRIVE_COUNT; ++i) {
+		if (!_config[i].drive_present) {
+			continue;
 		}
-    
-    Serial.println("Retrieving Drive0 Settings.....");
+		Serial.print("Setting Drive ");
+	        Serial.print(i);
+		Serial.println(" Now......");
+		digitalWrite(_config[i].pin_number, HIGH);  // connect drive to UART0
+		digitalWrite(BFR_CTRL_PIN, LOW);            // drive buffer to transmit data
+
+		send_drive_config(i);
+
+		delay(10);
+
+		Serial.println("Retrieving Drive %d Settings.....(), (driveNumber)");
 		TMC2209::Settings settings = stepper_driver.getSettings();
 		delay(10);
-		digitalWrite(PIN_PA3, HIGH); // receive data
+		digitalWrite(_config[i].pin_number, HIGH);  // drive buffer to receive data
 		Serial.print("settings.is_setup = ");
 		Serial.println(settings.is_setup);
 		Serial.print("settings.microsteps_per_step = ");
@@ -183,258 +146,45 @@ setup() {
 		Serial.println("*************************");
 		Serial.println();
 		delay(10);
-		digitalWrite(PIN_PA4, LOW); // disconnect drive
+		digitalWrite(_config[i].pin_number, LOW);  // disconnect drive from UART0
 	}
-    
-    if (Drv1_Present) {
-      Serial.println("Setting Drive1 Now......");
-      digitalWrite(PIN_PA5, HIGH); //connect drive
-      digitalWrite(PIN_PA3, LOW); // transmit data
-      delay(10);
-      stepper_driver.setReplyDelay(Drv_RepDel);
-      stepper_driver.setup(serial_stream);
-      stepper_driver.setRunCurrent(Drv1_RunCur);
-      stepper_driver.setHoldCurrent(Drv1_HldCur);
-      stepper_driver.setHoldDelay(Drv1_HldDel);
-      stepper_driver.setMicrostepsPerStep(Drv1_uStp);
-      stepper_driver.enableCoolStep(Drv1_ClStpEn);
-      stepper_driver.setCoolStepDurationThreshold(Drv1_ClStpTH);
-      if (Drv1_ExtRes) {
-        stepper_driver.useExternalSenseResistors();
-      } else {
-        stepper_driver.useInternalSenseResistors();
-      }
-      Serial.println("Retrieving Drive1 Settings.....");
-      TMC2209::Settings settings = stepper_driver.getSettings();
-      delay(10);
-      digitalWrite(PIN_PA3, HIGH); // receive data
-      Serial.print("settings.is_setup = ");
-      Serial.println(settings.is_setup);
-      Serial.print("settings.microsteps_per_step = ");
-      Serial.println(settings.microsteps_per_step);
-      Serial.print("settings.stealth_chop_enabled = ");
-      Serial.println(settings.stealth_chop_enabled);
-      Serial.print("settings.irun_percent = ");
-      Serial.println(settings.irun_percent);
-      Serial.print("settings.ihold_percent = ");
-      Serial.println(settings.ihold_percent);
-      Serial.print("settings.iholddelay_percent = ");
-      Serial.println(settings.iholddelay_percent);
-      Serial.print("settings.cool_step_enabled = ");
-      Serial.println(settings.cool_step_enabled);
-      Serial.print("settings.internal_sense_resistors_enabled = ");
-      Serial.println(settings.internal_sense_resistors_enabled);
-      Serial.println("*************************");
-      Serial.println();
-      delay(10);
-      digitalWrite(PIN_PA5, LOW); // disconnect drive
-    }
 
-    if (Drv2_Present) {
-      Serial.println("Setting Drive2 Now......");
-      digitalWrite(PIN_PA6, HIGH); //connect drive
-      digitalWrite(PIN_PA3, LOW); // transmit data
-      delay(10);
-      stepper_driver.setReplyDelay(Drv_RepDel);
-      stepper_driver.setup(serial_stream);
-      stepper_driver.setRunCurrent(Drv2_RunCur);
-      stepper_driver.setHoldCurrent(Drv2_HldCur);
-      stepper_driver.setHoldDelay(Drv2_HldDel);
-      stepper_driver.setMicrostepsPerStep(Drv2_uStp);
-      stepper_driver.enableCoolStep(Drv2_ClStpEn);
-      stepper_driver.setCoolStepDurationThreshold(Drv2_ClStpTH);
-      if (Drv2_ExtRes) {
-        stepper_driver.useExternalSenseResistors();
-      } else {
-        stepper_driver.useInternalSenseResistors();
-      }
-      
-      Serial.println("Retrieving Drive2 Settings.....");
-      TMC2209::Settings settings = stepper_driver.getSettings();
-      delay(10);
-      digitalWrite(PIN_PA3, HIGH); // receive data
-      Serial.print("settings.is_setup = ");
-      Serial.println(settings.is_setup);
-      Serial.print("settings.microsteps_per_step = ");
-      Serial.println(settings.microsteps_per_step);
-      Serial.print("settings.stealth_chop_enabled = ");
-      Serial.println(settings.stealth_chop_enabled);
-      Serial.print("settings.irun_percent = ");
-      Serial.println(settings.irun_percent);
-      Serial.print("settings.ihold_percent = ");
-      Serial.println(settings.ihold_percent);
-      Serial.print("settings.iholddelay_percent = ");
-      Serial.println(settings.iholddelay_percent);
-      Serial.print("settings.cool_step_enabled = ");
-      Serial.println(settings.cool_step_enabled);
-      Serial.print("settings.internal_sense_resistors_enabled = ");
-      Serial.println(settings.internal_sense_resistors_enabled);
-      Serial.println("*************************");
-      Serial.println();
-      delay(10);
-      digitalWrite(PIN_PA6, LOW); // disconnect drive
-    }
-    
-    if (Drv4_Present) {
-      Serial.println("Setting Drive3 Now......");
-      digitalWrite(PIN_PA7, HIGH); //connect drive
-      digitalWrite(PIN_PA3, LOW); // transmit data
-      delay(10);
-      stepper_driver.setReplyDelay(Drv_RepDel);
-      stepper_driver.setup(serial_stream);
-      stepper_driver.setRunCurrent(Drv3_RunCur);
-      stepper_driver.setHoldCurrent(Drv3_HldCur);
-      stepper_driver.setHoldDelay(Drv3_HldDel);
-      stepper_driver.setMicrostepsPerStep(Drv3_uStp);
-      stepper_driver.enableCoolStep(Drv3_ClStpEn);
-      stepper_driver.setCoolStepDurationThreshold(Drv3_ClStpTH);
-      if (Drv3_ExtRes) {
-        stepper_driver.useExternalSenseResistors();
-      } else {
-        stepper_driver.useInternalSenseResistors();
-      }
-      Serial.println("Retrieving Drive3 Settings.....");
-      TMC2209::Settings settings = stepper_driver.getSettings();
-      delay(10);
-      digitalWrite(PIN_PA3, HIGH); // receive data
-      Serial.print("settings.is_setup = ");
-      Serial.println(settings.is_setup);
-      Serial.print("settings.microsteps_per_step = ");
-      Serial.println(settings.microsteps_per_step);
-      Serial.print("settings.stealth_chop_enabled = ");
-      Serial.println(settings.stealth_chop_enabled);
-      Serial.print("settings.irun_percent = ");
-      Serial.println(settings.irun_percent);
-      Serial.print("settings.ihold_percent = ");
-      Serial.println(settings.ihold_percent);
-      Serial.print("settings.iholddelay_percent = ");
-      Serial.println(settings.iholddelay_percent);
-      Serial.print("settings.cool_step_enabled = ");
-      Serial.println(settings.cool_step_enabled);
-      Serial.print("settings.internal_sense_resistors_enabled = ");
-      Serial.println(settings.internal_sense_resistors_enabled);
-      Serial.println("*************************");
-      Serial.println();
-      delay(10);
-      digitalWrite(PIN_PA7, LOW); // disconnect drive
-    }
-    
-    if (Drv4_Present) {
-      Serial.println("Setting Drive4 Now......");
-      digitalWrite(PIN_PB0, HIGH); //connect drive
-      digitalWrite(PIN_PA3, LOW); // transmit data
-      delay(10);
-      stepper_driver.setReplyDelay(Drv_RepDel);
-      stepper_driver.setup(serial_stream);
-      stepper_driver.setRunCurrent(Drv4_RunCur);
-      stepper_driver.setHoldCurrent(Drv4_HldCur);
-      stepper_driver.setHoldDelay(Drv4_HldDel);
-      stepper_driver.setMicrostepsPerStep(Drv4_uStp);
-      stepper_driver.enableCoolStep(Drv4_ClStpEn);
-      stepper_driver.setCoolStepDurationThreshold(Drv4_ClStpTH);
-      if (Drv4_ExtRes) {
-        stepper_driver.useExternalSenseResistors();
-      } else {
-        stepper_driver.useInternalSenseResistors();
-      }
-      Serial.println("Retrieving Drive4 Settings.....()");
-      TMC2209::Settings settings = stepper_driver.getSettings();
-      delay(10);
-      digitalWrite(PIN_PA3, HIGH); // receive data
-      Serial.print("settings.is_setup = ");
-      Serial.println(settings.is_setup);
-      Serial.print("settings.microsteps_per_step = ");
-      Serial.println(settings.microsteps_per_step);
-      Serial.print("settings.stealth_chop_enabled = ");
-      Serial.println(settings.stealth_chop_enabled);
-      Serial.print("settings.irun_percent = ");
-      Serial.println(settings.irun_percent);
-      Serial.print("settings.ihold_percent = ");
-      Serial.println(settings.ihold_percent);
-      Serial.print("settings.iholddelay_percent = ");
-      Serial.println(settings.iholddelay_percent);
-      Serial.print("settings.cool_step_enabled = ");
-      Serial.println(settings.cool_step_enabled);
-      Serial.print("settings.internal_sense_resistors_enabled = ");
-      Serial.println(settings.internal_sense_resistors_enabled);
-      Serial.println("*************************");
-      Serial.println();
-      delay(10);
-      digitalWrite(PIN_PB0, LOW); // disconnect drive
-    }
 
-    if (Drv5_Present) {
-      Serial.println("Setting Drive5 Now......");
-      digitalWrite(PIN_PB1, HIGH); //connect drive
-      digitalWrite(PIN_PA3, LOW); // transmit data
-      delay(10);
-      stepper_driver.setReplyDelay(Drv_RepDel);
-      stepper_driver.setup(serial_stream);
-      stepper_driver.setRunCurrent(Drv5_RunCur);
-      stepper_driver.setHoldCurrent(Drv5_HldCur);
-      stepper_driver.setHoldDelay(Drv5_HldDel);
-      stepper_driver.setMicrostepsPerStep(Drv5_uStp);
-      stepper_driver.enableCoolStep(Drv5_ClStpEn);
-      stepper_driver.setCoolStepDurationThreshold(Drv5_ClStpTH);
-      if (Drv5_ExtRes) {
-        stepper_driver.useExternalSenseResistors();
-      } else {
-        stepper_driver.useInternalSenseResistors();
-      }
-      Serial.println("Retrieving Drive5 Settings.....");
-      TMC2209::Settings settings = stepper_driver.getSettings();
-      delay(10);
-      digitalWrite(PIN_PA3, HIGH); // receive data
-      Serial.print("settings.is_setup = ");
-      Serial.println(settings.is_setup);
-      Serial.print("settings.microsteps_per_step = ");
-      Serial.println(settings.microsteps_per_step);
-      Serial.print("settings.stealth_chop_enabled = ");
-      Serial.println(settings.stealth_chop_enabled);
-      Serial.print("settings.irun_percent = ");
-      Serial.println(settings.irun_percent);
-      Serial.print("settings.ihold_percent = ");
-      Serial.println(settings.ihold_percent);
-      Serial.print("settings.iholddelay_percent = ");
-      Serial.println(settings.iholddelay_percent);
-      Serial.print("settings.cool_step_enabled = ");
-      Serial.println(settings.cool_step_enabled);
-      Serial.print("settings.internal_sense_resistors_enabled = ");
-      Serial.println(settings.internal_sense_resistors_enabled);
-      Serial.println("*************************");
-      Serial.println();
-      delay(10);
-      digitalWrite(PIN_PB1, LOW); // disconnect drive
-
-      Serial.println("Finished");
-
-  } 
+	// SPI pins, Slave configuration
+	SPI.swap(1);                     // Portmux alternate SPI pins
+	pinMode(PIN_PC0, INPUT);         // SCK
+	pinMode(PIN_PC2, INPUT);         // MOSI
+	pinMode(PIN_PC1, OUTPUT);        // MISO
+	pinMode(PIN_PC3, INPUT_PULLUP);  // SS, define idle pin state
 }
-static Byte_Fifo _spi_buffer;
+
+int driveNumber = 0;
 
 void
 loop() {
-  if (digitalRead(SS) == HIGH) {
-    return;
-  }
 
-  u8 spi_data = 0xff;
-  if (!fifo_is_empty(_spi_buffer)) {
-    spi_data = fifo_get(&_spi_buffer);
-    // do something with data?
-    // for now, just print to debug...
-    char buf[5];
-    snprintf(buf, 5, "%02x ", spi_data);
-    Serial.print(buf);
-  }
+	if (digitalRead(SS) == HIGH) {
+		return;
+	}
+
+	u8 spi_data = 0xff;
+	while (!fifo_is_empty(_spi_buffer)) {
+		spi_data = fifo_get(&_spi_buffer);
+		// do something with data?
+		// for now, just print to debug...
+		char buf[5];
+		snprintf(buf, 5, "%02x ", spi_data);
+		Serial.print(buf);
+	}
+	Serial.print("\r\n");
 }
 
 ISR(__vector_SPI_STC) {
-  u8 spi_recv = SPDR;
-  if (!fifo_is_full(_spi_buffer)) {
-    fifo_add(&_spi_buffer, spi_recv);
-  }
+	u8 spi_recv = SPDR;
+	if (!fifo_is_full(_spi_buffer)) {
+		fifo_add(&_spi_buffer, spi_recv);
+	}
 
-  static u8 x = 0;
-  SPDR = x++;
+	static u8 x = 0;
+	SPDR = x++;
 }
