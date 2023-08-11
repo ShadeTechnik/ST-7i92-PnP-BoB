@@ -84,13 +84,13 @@ static const struct Drive_Config NEMA8_CONFIG = {
 #define DRIVE_COUNT 8
 static struct Drive_Config _config[DRIVE_COUNT] = {
 	NEMA17_CONFIG,
-	NEMA23_CONFIG,
 	NEMA17_CONFIG,
 	NEMA8_CONFIG,
 	NEMA8_CONFIG,
 	NEMA8_CONFIG,
 	NEMA8_CONFIG,
-	NEMA8_CONFIG,
+	NEMA8_CONFIG, // Not Populated
+	NEMA8_CONFIG, // Not Populated
 };
 
 static const u8 BFR_CTRL_PIN = PIN_PA3;
@@ -126,18 +126,19 @@ send_drive_config(int idx) {
 	} else {
 	stepper_driver.disableAutomaticCurrentScaling();
 	}
+  stepper_driver.enable();
 }
 
 void
 setup() {
 	_config[0].drive_present = true;
 	_config[1].drive_present = true;
-	_config[2].drive_present = true;
-	_config[3].drive_present = true;
+	_config[2].drive_present = false;
+	_config[3].drive_present = false;
 	_config[4].drive_present = true;
-	_config[5].drive_present = false;
-	_config[6].drive_present = false;
-	_config[7].drive_present = false;
+	_config[5].drive_present = true;
+	_config[6].drive_present = false; // Not Populated
+	_config[7].drive_present = false; // Not Populated
 
 	_config[0].pin_number = PIN_PA4;
 	_config[1].pin_number = PIN_PA5;
@@ -145,8 +146,8 @@ setup() {
 	_config[3].pin_number = PIN_PA7;
 	_config[4].pin_number = PIN_PB0;
 	_config[5].pin_number = PIN_PB1;
-	_config[6].pin_number = PIN_PB4;
-	_config[7].pin_number = PIN_PB5;
+	_config[6].pin_number = PIN_PB4; // Not Populated
+	_config[7].pin_number = PIN_PB5; // Not Populated
 
   pinMode(PIN_PA4, OUTPUT);
   pinMode(PIN_PA5, OUTPUT);
@@ -168,7 +169,7 @@ setup() {
   SPI0.INTCTRL |= 0x81;  // interrupt on receive
 
 	Serial.begin(9600);     // UART0, Debug or external control
-	Serial1.begin(57600);  // UART1, Drive Control
+	Serial1.begin(115200);  // UART1, Drive Control
 
 	Serial.print("Debug Console Running....\r\n\n");
 
@@ -190,21 +191,21 @@ setup() {
 		Serial.print(i);
 		Serial.println(" Now......");
 		digitalWrite(_config[i].pin_number, HIGH);  // connect drive to UART0
+		delay(200);
 		send_drive_config(i);
 
 		Serial.print("Retrieving Drive ");
 		Serial.print(i);
 		Serial.println(" Settings......");
 		TMC2209::Settings settings = stepper_driver.getSettings();
-		digitalWrite(_config[i].pin_number, HIGH);  // drive buffer to receive data
 		Serial.print("settings.is_setup = ");
 		Serial.println(settings.is_setup);
 		Serial.print("settings.irun_percent = ");
 		Serial.println(settings.irun_percent);
 		Serial.print("settings.ihold_percent = ");
 		Serial.println(settings.ihold_percent);
-    Serial.print("settings.microsteps_per_step = ");
-    Serial.println(settings.microsteps_per_step);
+		Serial.print("settings.microsteps_per_step = ");
+		Serial.println(settings.microsteps_per_step);
 		Serial.print("settings.cool_step_enabled = ");
 		Serial.println(settings.cool_step_enabled);
 		Serial.print("stall_guard_threshold = ");

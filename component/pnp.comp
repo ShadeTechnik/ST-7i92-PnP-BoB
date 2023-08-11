@@ -5,13 +5,51 @@
 
 component pnp "pnp";
 
-description "Does stuff";
+description "Component for ST-7i92 BoB";
 
-pin out float happy_output_pin;
-pin in float happy_input_pin;
+// Pins,params for Analog MCU
+pin out float analog-in0.in;
+pin in  float analog-in0.scale_gain;
+pin in  bit   analog-in0.filter_enable;
+pin in  float analog-in0.filter_gain;
+pin out float analog-in1.in;
+pin in  float analog-in1.scale_gain;
+pin in  bit   analog-in1.filter_enable;
+pin in  float analog-in1.filter_gain;
+pin out float analog-in2.in;
+pin in  float analog-in2.scale_gain;
+pin in  bit   analog-in2.filter_enable;
+pin in  float analog-in2.filter_gain;
+pin out float analog-in3.in;
+pin in  float analog-in3.scale_gain;
+pin in  bit   analog-in3.filter_enable;
+pin in  float analog-in3.filter_gain;
+
+// Pins,params for Analog MCU
+param rw u32 stepdrive0-runcur;
+param rw u32 stepdrive0-hldcur;
+param rw u32 stepdrive0-ustep;
+param rw u32 stepdrive1-runcur;
+param rw u32 stepdrive1-hldcur;
+param rw u32 stepdrive1-ustep;
+param rw u32 stepdrive2-runcur;
+param rw u32 stepdrive2-hldcur;
+param rw u32 stepdrive2-ustep;
+param rw u32 stepdrive3-runcur;
+param rw u32 stepdrive3-hldcur;
+param rw u32 stepdrive3-ustep;
+param rw u32 stepdrive4-runcur;
+param rw u32 stepdrive4-hldcur;
+param rw u32 stepdrive4-ustep;
+param rw u32 stepdrive5-runcur;
+param rw u32 stepdrive5-hldcur;
+param rw u32 stepdrive5-ustep;
+
 
 option extra_setup yes;
 //option count_function yes;
+
+variable unsigned firstrun;
 
 variable unsigned *_step_drive_rx;
 variable unsigned *_step_drive_tx;
@@ -48,8 +86,8 @@ EXTRA_SETUP() {
 
 	//hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
 	// CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
-	r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 0, 0, 0);
-	r = hm2_bspi_setup_chan(name, 1, 1, 32, 4, 0, 1, 0, 0, 0, 0);
+	r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 1, 0, 0);
+	r = hm2_bspi_setup_chan(name, 1, 1, 32, 4, 0, 1, 0, 1, 0, 0);
 	if (r < 0) {
 		rtapi_print_msg(
 		    RTAPI_MSG_ERR,
@@ -58,6 +96,19 @@ EXTRA_SETUP() {
 		    -r);
 		return -EINVAL;
 	}
+
+
+
+    // Setup ADC
+        // ADC, chans 0-3, 0 to +5v
+    r += hm2_bspi_write_chan(name, 1, 0x0000A000);
+
+    if (r < 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                      "There have been %i errors during ADC setup, "
+                      "quitting\n", -r);
+        return -EINVAL;
+    }
 
 	// Clear BSPI Rx & Tx FIFOs.
 	// This discards the received data from the ADC setup writes above,
