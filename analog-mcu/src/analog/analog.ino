@@ -6,31 +6,39 @@
 #include <SPI.h>
 #include <Arduino.h>
 
+#include "common/util.h"
 #include "common/types.h"
 
-// looks like 14-pin SOIC??
+#define DEBUG
+
+// 14-pin SOIC
 #define ADC1_PIN 4  // AIN6  ?
 #define ADC2_PIN 5  // AIN7  ?
 #define ADC3_PIN 9  // AIN11 ?
 #define ADC4_PIN 8  // AIN10 ?
 
 struct Reply {
-	uint16_t header;
-	uint16_t values[4];
-	uint16_t crc;
+	u16 header;
+	u16 adc[4];
+	u16 crc;
 };
 
-static struct Reply _reply_data = {.header = 0xa55a};
-static uint8_t _reply_idx;
+static Reply _reply;
+static u8    _reply_idx;
+
+static void
+_printf(const char* fmt, ...) {
+	static char buf[256];
+	va_list     args;
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof buf, fmt, args);
+	va_end(args);
+	Serial.print(buf);
+}
 
 void
 setup() {
 	Serial.begin(9600);
-
-	// What does this print?!
-	char buf[64];
-	snprintf(buf, sizeof(buf), "sizeof(void*): %zu", sizeof(void*));
-	Serial.print(buf);
 
 	// reply_data pins
 	pinMode(ADC1_PIN, INPUT);
@@ -46,6 +54,11 @@ setup() {
 
 	SPI0.CTRLA &= ~0x20;   // slave mode
 	SPI0.INTCTRL |= 0x81;  // interrupt on receive
+
+#ifdef DEBUG
+	// header
+	_printf("iter | ADC 1 | ADC 2 | ADC 3 | ADC 4\r\n");
+#endif /* DEBUG */
 }
 
 void
@@ -53,24 +66,64 @@ loop() {
 	if (digitalRead(SS) == HIGH) {
 		return;
 	}
-	if (_reply_idx < sizeof(_reply_data)) {
-		return;
+
+	static enum {
+		Analog_Reading,
+		Waiting_To_Load,
+		Waiting_To_Send,
+	} state;
+
+	static struct Reply next_reply = {
+	    0xa55a,        // header
+	    {0, 0, 0, 0},  // adc
+	    0xffff,        // crc
+	};
+
+	switch (state) {
+	case Analog_Reading:
+		next_reply.adc[0] = analogRead(ADC1_PIN);
+		next_reply.adc[1] = analogRead(ADC2_PIN);
+		next_reply.adc[2] = analogRead(ADC3_PIN);
+		next_reply.adc[3] = analogRead(ADC4_PIN);
+		// TODO: CRC
+		state = Waiting_To_Load;
+		fallthrough;
+
+	case Waiting_To_Load:
+		if (_reply_idx < sizeof(Reply)) {
+			return;
+		}
+		_reply = next_reply;
+		fallthrough;
+
+	case Waiting_To_Send:
+		if (digitalRead(SS) == LOW) {
+			return;
+		}
+		_reply_idx = 0;
+		state = Analog_Reading;
+
+		break;
 	}
 
-	_reply_data.values[0] = analogRead(ADC1_PIN);
-	_reply_data.values[1] = analogRead(ADC2_PIN);
-	_reply_data.values[2] = analogRead(ADC3_PIN);
-	_reply_data.values[3] = analogRead(ADC4_PIN);
-	_reply_idx = 0;
+#ifdef DEBUG
+	static u16 iter = 0;
+	_printf(
+	    "%04x | %-5u | %-5u | %-5u | %-5u\r",
+	    iter++,
+	    _reply.adc[0],
+	    _reply.adc[1],
+	    _reply.adc[2],
+	    _reply.adc[3]);
+#endif /* DEBUG */
 }
 
 ISR(__vector_SPI_STC) {
-	uint8_t spi_recv = SPI0.DATA;
+	u8 spi_recv = SPI0.DATA;
 	(void)spi_recv;
 
-	if (_reply_idx < sizeof(_reply_data)) {
-		const uint8_t* bytes = (uint8_t*)&_reply_data;
-		SPI0.DATA = bytes[_reply_idx];
-		_reply_idx += 1;
+	if (_reply_idx < sizeof(_reply)) {
+		const u8* bytes = (u8*)&_reply;
+		SPI0.DATA = bytes[_reply_idx++];
 	}
 }
