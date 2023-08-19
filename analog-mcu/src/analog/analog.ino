@@ -24,7 +24,7 @@ struct Reply {
 };
 
 static Reply _reply;
-static u8    _reply_idx;
+static u8    _reply_idx = sizeof(Reply);
 
 static void
 _printf(const char* fmt, ...) {
