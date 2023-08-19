@@ -94,6 +94,7 @@ loop() {
 			return;
 		}
 		_reply = next_reply;
+		state = Waiting_To_Send;
 		fallthrough;
 
 	case Waiting_To_Send:
@@ -102,7 +103,6 @@ loop() {
 		}
 		_reply_idx = 0;
 		state = Analog_Reading;
-
 		break;
 	}
 
