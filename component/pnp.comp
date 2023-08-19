@@ -8,24 +8,28 @@ component pnp "pnp";
 description "Component for ST-7i92 BoB";
 
 // Pins,params for Analog MCU
-pin out float analog-in0.in;
-pin in  float analog-in0.scale_gain;
-pin in  bit   analog-in0.filter_enable;
-pin in  float analog-in0.filter_gain;
+pin out u32   analog-in0.raw;           // unfiltered integer value from ADC
+pin out float analog-in0.in;            // scaled, filtered ADC value output as float 
+pin in  float analog-in0.scale_gain;    // refer to vari-bit-adc.comp
+pin in  bit   analog-in0.filter_enable; // refer to vari-bit-adc.comp
+pin in  float analog-in0.filter_gain;   // refer to vari-bit-adc.comp
+pin out u32   analog-in1.raw;
 pin out float analog-in1.in;
 pin in  float analog-in1.scale_gain;
 pin in  bit   analog-in1.filter_enable;
 pin in  float analog-in1.filter_gain;
+pin out u32   analog-in2.raw;
 pin out float analog-in2.in;
 pin in  float analog-in2.scale_gain;
 pin in  bit   analog-in2.filter_enable;
 pin in  float analog-in2.filter_gain;
+pin out u32   analog-in3.raw;
 pin out float analog-in3.in;
 pin in  float analog-in3.scale_gain;
 pin in  bit   analog-in3.filter_enable;
 pin in  float analog-in3.filter_gain;
 
-// Pins,params for Analog MCU
+// Pins,params for Step Drive MCU, these values should reside in MCU EEPROM to overwrite the flash defaults
 param rw u32 stepdrive0-runcur;
 param rw u32 stepdrive0-hldcur;
 param rw u32 stepdrive0-ustep;
