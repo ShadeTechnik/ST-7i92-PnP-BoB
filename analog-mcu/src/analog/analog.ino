@@ -12,10 +12,10 @@
 #define DEBUG
 
 // 14-pin SOIC
-#define ADC1_PIN 4  // AIN6  ?
-#define ADC2_PIN 5  // AIN7  ?
-#define ADC3_PIN 9  // AIN11 ?
-#define ADC4_PIN 8  // AIN10 ?
+#define ADC1_PIN PIN_PA6  // AIN6 
+#define ADC2_PIN PIN_PA7  // AIN7 
+#define ADC3_PIN PIN_PB0  // AIN11
+#define ADC4_PIN PIN_PB1  // AIN10
 
 struct Reply {
 	u16 header;
@@ -39,18 +39,16 @@ _printf(const char* fmt, ...) {
 void
 setup() {
 	Serial.begin(9600);
+ 
+  analogReference(EXTERNAL);
+  analogClockSpeed(1500);
 
-	// reply_data pins
-	pinMode(ADC1_PIN, INPUT);
-	pinMode(ADC2_PIN, INPUT);
-	pinMode(ADC3_PIN, INPUT);
-	pinMode(ADC4_PIN, INPUT);
 
 	// SPI pins, Slave configuration
-	pinMode(SCK, INPUT);
-	pinMode(MOSI, INPUT);
-	pinMode(MISO, OUTPUT);
-	pinMode(SS, INPUT_PULLUP);  // define idle pin state
+	pinMode(PIN_PA3, INPUT);         // SCK
+	pinMode(PIN_PA1, INPUT);         // MOSI
+	pinMode(PIN_PA2, OUTPUT);        // MISO
+	pinMode(PIN_PA4, INPUT_PULLUP);  // define idle pin state
 
 	SPI0.CTRLA &= ~0x20;   // slave mode
 	SPI0.INTCTRL |= 0x81;  // interrupt on receive
