@@ -39,10 +39,9 @@ _printf(const char* fmt, ...) {
 void
 setup() {
 	Serial.begin(9600);
- 
-  analogReference(EXTERNAL);
-  analogClockSpeed(1500);
 
+	analogReference(EXTERNAL);
+	analogClockSpeed(1500);
 
 	// SPI pins, Slave configuration
 	pinMode(PIN_PA3, INPUT);         // SCK
@@ -61,10 +60,6 @@ setup() {
 
 void
 loop() {
-	if (digitalRead(SS) == HIGH) {
-		return;
-	}
-
 	static enum {
 		Analog_Reading,
 		Waiting_To_Load,
