@@ -1,5 +1,6 @@
 .pio/
 *.so
 
+pnp.c
 compile_commands.json
 .clang-format

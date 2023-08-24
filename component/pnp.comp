@@ -72,6 +72,8 @@ read(void* subdata) {
 	if (*_step_drive_rx != 0) rtapi_print("step_drive: %08x\n", *_step_drive_rx);
 	if (*_analog_rx != 0) rtapi_print("analog: %08x\r\n", *_analog_rx);
 
+	analog_in0_raw = *_analog_rx;
+
 	*_step_drive_tx = 0x0123456;
 
 	return 0;
@@ -101,18 +103,18 @@ EXTRA_SETUP() {
 		return -EINVAL;
 	}
 
+	// Setup ADC
+	// ADC, chans 0-3, 0 to +5v
+	r += hm2_bspi_write_chan(name, 1, 0x0000A000);
 
-
-    // Setup ADC
-        // ADC, chans 0-3, 0 to +5v
-    r += hm2_bspi_write_chan(name, 1, 0x0000A000);
-
-    if (r < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                      "There have been %i errors during ADC setup, "
-                      "quitting\n", -r);
-        return -EINVAL;
-    }
+	if (r < 0) {
+		rtapi_print_msg(
+		    RTAPI_MSG_ERR,
+		    "There have been %i errors during ADC setup, "
+		    "quitting\n",
+		    -r);
+		return -EINVAL;
+	}
 
 	// Clear BSPI Rx & Tx FIFOs.
 	// This discards the received data from the ADC setup writes above,
