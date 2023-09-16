@@ -9,7 +9,7 @@ description "Component for ST-7i92 BoB";
 
 // Pins,params for Analog MCU
 pin out u32   analog-in0.raw;           // unfiltered integer value from ADC
-pin out float analog-in0.in;            // scaled, filtered ADC value output as float 
+pin out float analog-in0.in;            // scaled, filtered ADC value output as float
 pin in  float analog-in0.scale_gain;    // refer to vari-bit-adc.comp
 pin in  bit   analog-in0.filter_enable; // refer to vari-bit-adc.comp
 pin in  float analog-in0.filter_gain;   // refer to vari-bit-adc.comp
@@ -57,8 +57,8 @@ variable unsigned firstrun;
 
 variable unsigned *_step_drive_rx;
 variable unsigned *_step_drive_tx;
-variable unsigned *_analog_rx;
-variable unsigned *_analog_tx;
+variable unsigned *_analog_rx[2];
+variable unsigned *_analog_tx[2]
 
 license "GPLv2";
 
@@ -70,9 +70,14 @@ read(void* subdata) {
 	struct __comp_state* __comp_inst = subdata;
 
 	if (*_step_drive_rx != 0) rtapi_print("step_drive: %08x\n", *_step_drive_rx);
-	if (*_analog_rx != 0) rtapi_print("analog: %08x\r\n", *_analog_rx);
+	if (*_analog_rx[0] != 0) rtapi_print("analog: %08x\r\n", *_analog_rx[0]);
 
-	analog_in0_raw = *_analog_rx;
+	analog_in0_raw = (*_analog_rx[0] >> 24) & 0xff;
+	analog_in1_raw = (*_analog_rx[0] >> 16) & 0xff;
+	analog_in2_raw = (*_analog_rx[0] >> 8 ) & 0xff;
+	analog_in3_raw = *_analog_rx[0] & 0xff;
+	
+	if (*_analog_rx[1] != 0) rtapi_print("analog: %08x\r\n", *_analog_rx[1]);
 
 	*_step_drive_tx = 0x0123456;
 
@@ -93,7 +98,7 @@ EXTRA_SETUP() {
 	//hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
 	// CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
 	r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 1, 0, 0);
-	r = hm2_bspi_setup_chan(name, 1, 1, 32, 4, 0, 1, 0, 1, 0, 0);
+	r = hm2_bspi_setup_chan(name, 1, 1, 48, 4, 0, 1, 0, 1, 0, 0);
 	if (r < 0) {
 		rtapi_print_msg(
 		    RTAPI_MSG_ERR,
@@ -124,7 +129,10 @@ EXTRA_SETUP() {
 
 	// Add BSPI Frames
 	r = hm2_tram_add_bspi_frame(name, 0, &_step_drive_tx, &_step_drive_rx);
-	r = hm2_tram_add_bspi_frame(name, 1, &_analog_tx, &_analog_rx);
+	r = hm2_tram_add_bspi_frame(name, 1, &_analog_tx[0], &_analog_rx[0]);
+
+	// TODO: no way this is right...
+	r = hm2_tram_add_bspi_frame(name, 1, &_analog_tx[1], &_analog_rx[1]);
 
 	// This is required, or nothing happens.
 	r += hm2_allocate_bspi_tram(name);

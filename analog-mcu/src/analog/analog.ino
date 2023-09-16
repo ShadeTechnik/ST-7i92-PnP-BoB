@@ -18,9 +18,12 @@
 #define ADC4_PIN PIN_PB1  // AIN10
 
 struct Reply {
-	u16 header;
-	u16 adc[4];
-	u16 crc;
+	u8 adc0_low;
+	u8 adc1_low;
+	u8 adc2_low;
+	u8 adc3_low;
+	u8 adc01_high;
+	u8 adc23_high;
 };
 
 static Reply _reply;
@@ -66,19 +69,24 @@ loop() {
 		Waiting_To_Send,
 	} state;
 
-	static struct Reply next_reply = {
-	    0xa55a,        // header
-	    {0, 0, 0, 0},  // adc
-	    0xffff,        // crc
-	};
-
+	static struct Reply next_reply;
+	
+	u16 adc[4];
 	switch (state) {
 	case Analog_Reading:
-		next_reply.adc[0] = analogRead(ADC1_PIN);
-		next_reply.adc[1] = analogRead(ADC2_PIN);
-		next_reply.adc[2] = analogRead(ADC3_PIN);
-		next_reply.adc[3] = analogRead(ADC4_PIN);
-		// TODO: CRC
+		adc[0] = analogRead(ADC1_PIN);
+		adc[1] = analogRead(ADC2_PIN);
+		adc[2] = analogRead(ADC3_PIN);
+		adc[3] = analogRead(ADC4_PIN);
+
+		next_reply.adc0_low = adc[0];
+		next_reply.adc1_low = adc[1];
+		next_reply.adc2_low = adc[2];
+		next_reply.adc3_low = adc[3];
+
+		next_reply.adc01_high = adc[0] >> 8 | adc[1] >> 4;
+		next_reply.adc23_high = adc[2] >> 8 | adc[3] >> 4;
+
 		state = Waiting_To_Load;
 		fallthrough;
 
@@ -104,10 +112,10 @@ loop() {
 	_printf(
 	    "%04x | %-5u | %-5u | %-5u | %-5u\r",
 	    iter++,
-	    _reply.adc[0],
-	    _reply.adc[1],
-	    _reply.adc[2],
-	    _reply.adc[3]);
+	    adc[0],
+	    adc[1],
+	    adc[2],
+	    adc[3]);
 #endif /* DEBUG */
 }
 
