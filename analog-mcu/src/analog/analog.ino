@@ -84,8 +84,8 @@ loop() {
 		next_reply.adc2_low = adc[2];
 		next_reply.adc3_low = adc[3];
 
-		next_reply.adc01_high = adc[0] >> 8 | adc[1] >> 4;
-		next_reply.adc23_high = adc[2] >> 8 | adc[3] >> 4;
+		next_reply.adc01_high = adc[0] >> 8 | (adc[1] >> 4 & 0xf0);
+		next_reply.adc23_high = adc[2] >> 8 | (adc[3] >> 4 & 0xf0);
 
 		state = Waiting_To_Load;
 		fallthrough;

@@ -58,7 +58,7 @@ variable unsigned firstrun;
 variable unsigned *_step_drive_rx;
 variable unsigned *_step_drive_tx;
 variable unsigned *_analog_rx[2];
-variable unsigned *_analog_tx[2]
+variable unsigned *_analog_tx[2];
 
 license "GPLv2";
 
@@ -72,10 +72,15 @@ read(void* subdata) {
 	if (*_step_drive_rx != 0) rtapi_print("step_drive: %08x\n", *_step_drive_rx);
 	if (*_analog_rx[0] != 0) rtapi_print("analog: %08x\r\n", *_analog_rx[0]);
 
-	analog_in0_raw = (*_analog_rx[0] >> 24) & 0xff;
-	analog_in1_raw = (*_analog_rx[0] >> 16) & 0xff;
-	analog_in2_raw = (*_analog_rx[0] >> 8 ) & 0xff;
-	analog_in3_raw = *_analog_rx[0] & 0xff;
+	analog_in0_raw = *_analog_rx[0] & 0xff;
+	analog_in1_raw = (*_analog_rx[0] >> 8 ) & 0xff;
+	analog_in2_raw = (*_analog_rx[0] >> 16) & 0xff;
+	analog_in3_raw = (*_analog_rx[0] >> 24) & 0xff;
+
+	analog_in0_raw |= (*_analog_rx[1] & 0x000f) << 8;
+	analog_in1_raw |= (*_analog_rx[1] & 0x00f0) << 4;
+	analog_in2_raw |= (*_analog_rx[1] & 0x0f00);
+	analog_in3_raw |= (*_analog_rx[1] & 0xf000) >> 4;
 	
 	if (*_analog_rx[1] != 0) rtapi_print("analog: %08x\r\n", *_analog_rx[1]);
 
