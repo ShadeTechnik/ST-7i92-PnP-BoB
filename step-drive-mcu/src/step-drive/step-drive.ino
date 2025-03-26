@@ -83,10 +83,10 @@ static const struct Drive_Config NEMA8_CONFIG = {
 
 #define DRIVE_COUNT 8
 static struct Drive_Config _config[DRIVE_COUNT] = {
+	NEMA23_CONFIG,
+	NEMA23_CONFIG,
 	NEMA17_CONFIG,
 	NEMA17_CONFIG,
-	NEMA8_CONFIG,
-	NEMA8_CONFIG,
 	NEMA8_CONFIG,
 	NEMA8_CONFIG,
 	NEMA8_CONFIG, // Not Populated
@@ -133,8 +133,8 @@ void
 setup() {
 	_config[0].drive_present = true;
 	_config[1].drive_present = true;
-	_config[2].drive_present = false;
-	_config[3].drive_present = false;
+	_config[2].drive_present = true;
+	_config[3].drive_present = true;
 	_config[4].drive_present = true;
 	_config[5].drive_present = true;
 	_config[6].drive_present = false; // Not Populated
@@ -170,6 +170,8 @@ setup() {
 
 	Serial.begin(9600);     // UART0, Debug or external control
 	Serial1.begin(115200);  // UART1, Drive Control
+
+  delay(5000);
 
 	Serial.print("Debug Console Running....\r\n\n");
 
