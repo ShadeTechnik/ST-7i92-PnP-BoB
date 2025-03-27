@@ -103,7 +103,9 @@ EXTRA_SETUP() {
 	//hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
 	// CS0 loopback Echo, CS0, ~ 4 MHz, CPOL, 32 bits
 	r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 1, 0, 1, 0, 0);
-	r = hm2_bspi_setup_chan(name, 1, 1, 48, 4, 0, 1, 0, 1, 0, 0);
+	//Chan 1, 48bit split in 2 packets
+	r = hm2_bspi_setup_chan(name, 1, 1, 32, 4, 0, 1, 0, 1, 0, 0);
+	r = hm2_bspi_setup_chan(name, 1, 1, 16, 4, 0, 1, 0, 0, 0, 0);
 	if (r < 0) {
 		rtapi_print_msg(
 		    RTAPI_MSG_ERR,
