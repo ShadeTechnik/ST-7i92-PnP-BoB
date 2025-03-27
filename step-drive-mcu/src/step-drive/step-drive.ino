@@ -9,18 +9,18 @@ typedef Fifo(u8, 64) Byte_Fifo;
 static Byte_Fifo _spi_buffer;
 
 struct Drive_Config {
- u8 reply_delay;
- u8 irun_percent;
- u8 ihold_percent;
- u16 microsteps;
- bool enable_coolstep;
- u8 coolstep_lower;
- u8 coolstep_upper;
- u8 stall_guard_threshold;
- bool use_external_sense_resistor;
- bool enable_stealth_chop;
- u32 stealth_chop_duration_threshold;
- bool enable_automatic_current_scaling;
+  u8 reply_delay;
+  u8 irun_percent;
+  u8 ihold_percent;
+  u16 microsteps;
+  bool enable_coolstep;
+  u8 coolstep_lower;
+  u8 coolstep_upper;
+  u8 stall_guard_threshold;
+  bool use_external_sense_resistor;
+  bool enable_stealth_chop;
+  u32 stealth_chop_duration_threshold;
+  bool enable_automatic_current_scaling;
 };
 
 struct Drive {
@@ -89,24 +89,15 @@ static Drive drives[] = {
 TMC2209 stepper_drivers[sizeof(drives) / sizeof(drives[0])];
 
 void configureDrive(const Drive_Config& config, TMC2209& driver) {
-<<<<<<< Updated upstream
+
   driver.setRunCurrent(config.irun_percent);
   driver.setHoldCurrent(config.ihold_percent);
-  driver.setMicrostepsPerStep(config.microsteps);
-  if (config.enable_stealth_chop) {
-    driver.enableStealthChop();
-  }
-=======
-  
-  driver.setRunCurrent(config.irun_percent);
-  driver.setHoldCurrent(config.ihold_percent);
-  
+
   if (config.enable_stealth_chop) {
     driver.enableStealthChop();
   }
   driver.setMicrostepsPerStep(config.microsteps);
-  
->>>>>>> Stashed changes
+
   if (config.enable_coolstep) {
     driver.enableCoolStep();
     driver.setCoolStepDurationThreshold(config.coolstep_lower);
@@ -161,11 +152,8 @@ void loop() {
     Serial.println(settings.ihold_percent);
     Serial.print("microsteps: ");
     Serial.println(stepper_drivers[i].getMicrostepsPerStep());
-<<<<<<< Updated upstream
-=======
-    
-    
->>>>>>> Stashed changes
+
+
     Serial.println();
     delay(100);
   }
