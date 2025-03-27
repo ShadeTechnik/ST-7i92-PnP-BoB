@@ -89,12 +89,24 @@ static Drive drives[] = {
 TMC2209 stepper_drivers[sizeof(drives) / sizeof(drives[0])];
 
 void configureDrive(const Drive_Config& config, TMC2209& driver) {
+<<<<<<< Updated upstream
   driver.setRunCurrent(config.irun_percent);
   driver.setHoldCurrent(config.ihold_percent);
   driver.setMicrostepsPerStep(config.microsteps);
   if (config.enable_stealth_chop) {
     driver.enableStealthChop();
   }
+=======
+  
+  driver.setRunCurrent(config.irun_percent);
+  driver.setHoldCurrent(config.ihold_percent);
+  
+  if (config.enable_stealth_chop) {
+    driver.enableStealthChop();
+  }
+  driver.setMicrostepsPerStep(config.microsteps);
+  
+>>>>>>> Stashed changes
   if (config.enable_coolstep) {
     driver.enableCoolStep();
     driver.setCoolStepDurationThreshold(config.coolstep_lower);
@@ -149,6 +161,11 @@ void loop() {
     Serial.println(settings.ihold_percent);
     Serial.print("microsteps: ");
     Serial.println(stepper_drivers[i].getMicrostepsPerStep());
+<<<<<<< Updated upstream
+=======
+    
+    
+>>>>>>> Stashed changes
     Serial.println();
     delay(100);
   }
